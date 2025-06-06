@@ -26,12 +26,12 @@ class DraftEmbeddings(nn.Module):
 from transformers.models.bert.modeling_bert import BertModel, BertEncoder, BertPooler
 from transformers.modeling_outputs import BaseModelOutputWithPooling
 class DraftBertModel(BertModel):
-    def __init__(self, config):
+    def __init__(self, config, is_causal):
         super().__init__(config)
         self.embeddings = DraftEmbeddings(config)
         self.encoder = BertEncoder(config)
         self.pooler = BertPooler(config) if getattr(config, "add_pooling_layer", False) else None
-        self.is_causal = 0
+        self.is_causal = is_causal
 
     def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None):
         if self.is_causal:  # hypothetical flag
@@ -72,9 +72,9 @@ from transformers import BertPreTrainedModel
 from transformers.models.bert.modeling_bert import BertOnlyMLMHead
 
 class DraftBertForMaskedLM(BertPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, is_causal=0):
         super().__init__(config)
-        self.bert = DraftBertModel(config)
+        self.bert = DraftBertModel(config, is_causal)
         self.cls = BertOnlyMLMHead(config)
         self.init_weights()
 
@@ -105,47 +105,5 @@ class DraftBertForMaskedLM(BertPreTrainedModel):
             "loss": loss,
             "logits": prediction_scores
         }
-config.add_pooling_layer = True
 
 
-model = DraftBertForMaskedLM(config)
-
-
-from transformers import TrainingArguments
-
-training_args = TrainingArguments(
-    output_dir="./checkpoints",
-    save_strategy="no",  # or "epoch", "steps"
-    num_train_epochs=50,
-    #per_device_train_batch_size=4,
-    logging_dir="./logs",
-    logging_steps=10,
-    save_total_limit=1,
-    #evaluation_strategy="no",
-    save_safetensors=False,  # ✅ disables "safe serialization"
-)
-
-
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=dataset,  # must return input_ids, labels, attention_mask, position_ids, team_ids, type_ids
-)
-
-trainer.train()
-
-
-
-def get_seen_token_list(input_ids, pad_token_id=252):
-    """
-    For each sequence in the batch, return a list of token IDs that were already used
-    (excluding [PAD] tokens).
-    """
-    blocked = []
-    for seq in input_ids:
-        seen = set()
-        for token_id in seq:
-            if token_id != pad_token_id:
-                seen.add(token_id)
-        blocked.append(list(seen))
-    return blocked

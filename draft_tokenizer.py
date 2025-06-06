@@ -17,6 +17,11 @@ class DraftTokenizer:
             '[SEP]': self.vocab['[SEP]'],
         }
 
+        self.pad_token_id = self.special_tokens['[PAD]']
+        self.mask_token_id = self.special_tokens['[MASK]']
+        self.cls_token_id = self.special_tokens['[CLS]']
+        self.sep_token_id = self.special_tokens['[SEP]']
+
     @classmethod
     def load_from_files(cls, vocab_dir="vocab"):
         with open(f"{vocab_dir}/vocab.json") as f:
