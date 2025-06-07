@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset
 from transformers import DataCollatorForLanguageModeling
+import torch
+
 
 class DraftMLMDataset(Dataset):
     def __init__(self, tokenized_docs, tokenizer, max_len=32, pad_token_id=252):
@@ -12,28 +14,33 @@ class DraftMLMDataset(Dataset):
         return len(self.docs)
 
     def __getitem__(self, idx):
-        tokens = self.docs[idx]
-        input_ids = [x['token_id'] for x in tokens][:self.max_len]
-        input_ids += [self.pad_token_id] * (self.max_len - len(input_ids))
+        # This is how you generate input_ids
+        #def __getitem__(self, idx):
+        inputs = self.docs[idx]  # Already a dict of tensors (e.g., from tokenizer(actions, return_tensors='pt'))
 
-        position_ids = [x['order'] for x in tokens][:self.max_len]
-        position_ids += [0] * (self.max_len - len(position_ids))
+        input_ids = inputs['input_ids'].clone()
+        labels = input_ids.clone()
 
-        team_ids = [x['team'] for x in tokens][:self.max_len]
-        team_ids += [0] * (self.max_len - len(team_ids))
+        # Apply 15% masking
+        prob_matrix = torch.full(labels.shape, 0.15)
+        mask = torch.bernoulli(prob_matrix).bool()
 
-        type_ids = [int(x['is_pick']) for x in tokens][:self.max_len]
-        type_ids += [0] * (self.max_len - len(type_ids))
+        # Replace with [MASK] token
+        input_ids[mask] = self.tokenizer.mask_token_id
 
-        attention_mask = [1 if token != self.pad_token_id else 0 for token in input_ids]
+        # Only compute loss on masked positions
+        labels = labels.masked_fill(~mask, -100)
 
+        # Return the batch
         return {
-            'input_ids': torch.tensor(input_ids),
-            'position_ids': torch.tensor(position_ids),
-            'team_ids': torch.tensor(team_ids),
-            'type_ids': torch.tensor(type_ids),
-            'attention_mask': torch.tensor(attention_mask, dtype=torch.bool)
+            'input_ids': input_ids,
+            'attention_mask': inputs['attention_mask'],
+            'position_ids': inputs['position_ids'],
+            'team_ids': inputs['team_ids'],
+            'type_ids': inputs['type_ids'],
+            'labels': labels
         }
+
 
 
 

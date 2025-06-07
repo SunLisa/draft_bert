@@ -21,6 +21,10 @@ class DraftTokenizer:
         self.mask_token_id = self.special_tokens['[MASK]']
         self.cls_token_id = self.special_tokens['[CLS]']
         self.sep_token_id = self.special_tokens['[SEP]']
+        self.mask_token = '[MASK]'
+        self.pad_token = '[PAD]'
+        self.cls_token = '[CLS]'
+        self.sep_token = '[SEP]'
 
     @classmethod
     def load_from_files(cls, vocab_dir="vocab"):
@@ -66,6 +70,9 @@ class DraftTokenizer:
     def vocab_size(self):
         return len(self.vocab)
 
+    def get_vocab(self):
+        return self.vocab
+
     def __call__(self, actions, max_len=32, add_special_tokens=True, return_tensors=None):
         encoded = self.encode_sequence(actions)
 
@@ -101,7 +108,42 @@ class DraftTokenizer:
 
         if return_tensors == 'pt':
             import torch
-            output = {k: torch.tensor(v) for k, v in output.items()}
+            output = {
+                'input_ids': torch.tensor(output['input_ids'], dtype=torch.long),
+                'attention_mask': torch.tensor(output['attention_mask'], dtype=torch.bool),
+                'position_ids': torch.tensor(output['position_ids'], dtype=torch.long),
+                'team_ids': torch.tensor(output['team_ids'], dtype=torch.long),
+                'type_ids': torch.tensor(output['type_ids'], dtype=torch.long),
+            }
 
         return output
+
+    def pad(self, encoded_inputs, padding=True, max_length=32, return_tensors="pt", **kwargs):
+        import torch
+
+        batch = {k: [example[k] for example in encoded_inputs] for k in encoded_inputs[0]}
+        
+        padded_batch = {}
+        for k, sequences in batch.items():
+            max_len = max(len(seq) for seq in sequences) if padding is True else max_length
+            pad_id = self.pad_token_id if hasattr(self, "pad_token_id") else 0
+
+            padded = [
+                list(seq) + [pad_id] * (max_len - len(seq))
+                for seq in sequences
+            ]
+            padded_batch[k] = torch.tensor(padded)
+
+        return padded_batch
+
+
+    def get_special_tokens_mask(self, token_ids, already_has_special_tokens=False):
+        """
+        Returns a mask with 1 for special tokens, 0 otherwise.
+        This is used by Hugging Face to avoid masking special tokens during MLM.
+        """
+        special_ids = set(self.special_tokens.values())
+        return [1 if token_id in special_ids else 0 for token_id in token_ids]
+
+
 
