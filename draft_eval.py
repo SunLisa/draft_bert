@@ -22,6 +22,37 @@ def generate_causal_eval_samples(tokenized_doc, max_len=32):
     return samples
 
 
+def generate_masked_eval_samples(tokenized_doc, tokenizer):
+    samples = []
+
+    input_ids = tokenized_doc['input_ids']
+    attention_mask = tokenized_doc['attention_mask']
+    valid_len = attention_mask.sum().item()
+
+    for i in range(valid_len):
+        if input_ids[i].item() in tokenizer.special_tokens.values():
+            continue  # skip [CLS], [SEP], [PAD]
+
+        masked_ids = input_ids.clone()
+        true_token = masked_ids[i].item()
+        masked_ids[i] = tokenizer.mask_token_id
+
+        sample = {
+            'input_ids': masked_ids,
+            'attention_mask': tokenized_doc['attention_mask'],
+            'position_ids': tokenized_doc['position_ids'],
+            'team_ids': tokenized_doc['team_ids'],
+            'type_ids': tokenized_doc['type_ids'],
+            'label': true_token,
+            'predicting_position': i
+        }
+        samples.append(sample)
+
+    return samples
+
+
+
+
 import torch
 
 def topk_accuracy(logits, true_labels, k=1):
@@ -43,12 +74,26 @@ def topk_accuracy(logits, true_labels, k=1):
 
 import pandas as pd
 
-def evaluate_model_detailed(model, encoded_games, topks=(1, 3, 5, 10), tokenizer=None):
+
+
+
+def evaluate_model_detailed(
+    model,
+    encoded_games,
+    topks=(1, 3, 5, 10),
+    tokenizer=None,
+    mode="causal"  # or "masked"
+):
     model.eval()
     records = []
 
     for doc_id, doc in enumerate(encoded_games):
-        samples = generate_causal_eval_samples(doc)
+        if mode == "causal":
+            samples = generate_causal_eval_samples(doc)
+        elif mode == "masked":
+            samples = generate_masked_eval_samples(doc, tokenizer)
+        else:
+            raise ValueError(f"Unsupported mode: {mode}")
 
         for sample in samples:
             input_ids = sample['input_ids'].unsqueeze(0).to(model.device)
@@ -67,26 +112,26 @@ def evaluate_model_detailed(model, encoded_games, topks=(1, 3, 5, 10), tokenizer
                 )
                 logits = outputs['logits']
 
-            next_token_logits = logits[0, -1]
+            pred_pos = sample['predicting_position']
+            logits_at_pos = logits[0, pred_pos]
             true_label = sample['label']
-            
+
             result = {
                 "doc_id": doc_id,
-                "predicting_position": len(input_ids[0]),
+                "predicting_position": pred_pos,
                 "true_label": true_label,
             }
 
             for k in topks:
-                topk_preds = torch.topk(next_token_logits, k).indices.tolist()
+                topk_preds = torch.topk(logits_at_pos, k).indices.tolist()
                 result[f"top{k}_correct"] = int(true_label in topk_preds)
                 result[f"top{k}_preds"] = topk_preds
                 if tokenizer:
                     result[f"top{k}_tokens"] = [tokenizer.decode_token_id(tid) for tid in topk_preds]
-            
             if tokenizer:
                 result["true_token"] = tokenizer.decode_token_id(true_label)
 
             records.append(result)
 
-    df = pd.DataFrame(records)
-    return df
+    return pd.DataFrame(records)
+

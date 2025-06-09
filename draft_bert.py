@@ -40,7 +40,14 @@ class DraftBertModel(BertModel):
             attention_mask = causal_mask.unsqueeze(0).expand(input_ids.size(0), -1, -1)
         else:
             attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # broadcasted mask
-        
+        """
+        print("input_ids:", input_ids.shape)
+        print("attention_mask:", attention_mask.shape)
+        print("position_ids:", position_ids.shape)
+        print("team_ids:", team_ids.shape)
+        print("type_ids:", type_ids.shape)
+        """
+
         # 👇 Inject custom embeddings
         embedding_output = self.embeddings(
             input_ids=input_ids,
@@ -108,3 +115,37 @@ class DraftBertForMaskedLM(BertPreTrainedModel):
         }
 
 
+
+
+from transformers import GPT2PreTrainedModel, GPT2Model
+import torch.nn as nn
+
+class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.transformer = GPT2Model(config)
+
+        self.team_embed = nn.Embedding(2, config.hidden_size)
+        self.type_embed = nn.Embedding(2, config.hidden_size)
+
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.pad_token_id = config.pad_token_id
+
+        self.init_weights()
+
+    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, labels=None):
+        team_embeddings = self.team_embed(team_ids)
+        type_embeddings = self.type_embed(type_ids)
+
+        inputs_embeds = self.transformer.wte(input_ids) + self.transformer.wpe(position_ids)
+        inputs_embeds = inputs_embeds + team_embeddings + type_embeddings
+
+        outputs = self.transformer(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
+        logits = self.lm_head(outputs.last_hidden_state)
+
+        loss = None
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss(ignore_index=self.pad_token_id)
+            loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
+
+        return {'loss': loss, 'logits': logits}
