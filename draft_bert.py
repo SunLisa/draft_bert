@@ -22,7 +22,7 @@ class DraftEmbeddings(nn.Module):
 
 
 
-
+import torch
 from transformers.models.bert.modeling_bert import BertModel, BertEncoder, BertPooler
 from transformers.modeling_outputs import BaseModelOutputWithPooling
 class DraftBertModel(BertModel):
