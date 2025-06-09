@@ -75,6 +75,7 @@ class DraftBertForMaskedLM(BertPreTrainedModel):
     def __init__(self, config, is_causal=0):
         super().__init__(config)
         self.bert = DraftBertModel(config, is_causal)
+        #self.lm_head = nn.Linear(config.hidden_size, config.vocab_size)
         self.cls = BertOnlyMLMHead(config)
         self.init_weights()
 

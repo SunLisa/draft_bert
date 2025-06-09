@@ -43,7 +43,6 @@ class DraftMLMDataset(Dataset):
 
 
 
-
 class DraftCLMDataset(Dataset):
     def __init__(self, tokenized_docs, max_len=32, pad_token_id=252):
         self.samples = []
