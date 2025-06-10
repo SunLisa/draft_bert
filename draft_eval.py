@@ -17,7 +17,6 @@ def get_blocked_token_ids(used_token_ids, pad_token_id=252, device='cpu'):
     for tok in used_token_ids:
         if tok >= pad_token_id:
             continue
-        blocked_ids.add(tok)
         if 0 <= tok <= 125:  # pick
             blocked_ids.add(tok)
             blocked_ids.add(tok+126)
