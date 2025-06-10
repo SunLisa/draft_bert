@@ -48,10 +48,10 @@ from transformers import BertConfig
 
 bconfig = BertConfig(
     vocab_size=256,             # set to match your tokenizer.vocab_size()
-    hidden_size=64,
+    hidden_size=128,
     num_attention_heads=4,
     num_hidden_layers=4,
-    intermediate_size=256,
+    intermediate_size=512,
     max_position_embeddings=32,
     pad_token_id=252,
     # Optional but good practice:
@@ -68,10 +68,10 @@ from transformers import GPT2Config
 
 gconfig = GPT2Config(
     vocab_size=256,             # match tokenizer
-    n_embd=64,                 # same as hidden_size
+    n_embd=128,                 # same as hidden_size
     n_layer=4,                  # same depth
     n_head=4,                   # same # of heads
-    n_inner=256,                # same intermediate size
+    n_inner=512,                # same intermediate size
     n_positions=32,            # max sequence length
     n_ctx=32,                  # max context (same as n_positions)
     pad_token_id=252,          # you need to set this explicitly
@@ -104,7 +104,7 @@ from transformers import TrainingArguments
 btraining_args = TrainingArguments(
     output_dir="./checkpoints",                 # ✅ Save location
     overwrite_output_dir=True,                  # ✅ Overwrite if exists
-    num_train_epochs=500,                        # ✅ Your plan
+    num_train_epochs=5000,                        # ✅ Your plan
     per_device_train_batch_size=8,              # ✅ Tweak based on memory
     logging_dir="./logs",                       # ✅ For TensorBoard etc.
     logging_steps=10,                           # ✅ Log every 10 steps
@@ -135,7 +135,7 @@ btrainer.save_model("./model/final_bert_model")
 gtraining_args = TrainingArguments(
     output_dir="./checkpoints",                 # ✅ Save location
     overwrite_output_dir=True,                  # ✅ Overwrite if exists
-    num_train_epochs=50,                        # ✅ Your plan
+    num_train_epochs=200,                        # ✅ Your plan
     per_device_train_batch_size=8,              # ✅ Tweak based on memory
     logging_dir="./logs",                       # ✅ For TensorBoard etc.
     logging_steps=10,                           # ✅ Log every 10 steps
@@ -176,12 +176,12 @@ df = evaluate_model_detailed(gmodel,test_docs,mode='causal')
 df.to_csv('eval/gmodel_test.csv')
 df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('gtest_rez.csv')
 
-df = evaluate_model_detailed(bmodel,train_docs,mode='mask')
+df = evaluate_model_detailed(bmodel,train_docs,mode='masked')
 
 df.to_csv('eval/bmodel_train.csv')
 df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('btest_rez.csv')
 
-df = evaluate_model_detailed(bmodel,test_docs,mode='mask')
+df = evaluate_model_detailed(bmodel,test_docs,mode='masked')
 
 df.to_csv('eval/bmodel_test.csv')
 df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('btest_rez.csv')
