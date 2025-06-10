@@ -101,7 +101,12 @@ def evaluate_model_detailed(
             position_ids = sample['position_ids'].unsqueeze(0).to(model.device)
             team_ids = sample['team_ids'].unsqueeze(0).to(model.device)
             type_ids = sample['type_ids'].unsqueeze(0).to(model.device)
-
+            ###
+            ### we figure out who's banned and picked
+            ### blocked out all the hero (both ban/picks)
+            ### change logit to -inf
+            ### output will be clean
+            ###
             with torch.no_grad():
                 outputs = model(
                     input_ids=input_ids,

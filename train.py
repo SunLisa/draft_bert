@@ -135,7 +135,7 @@ btrainer.save_model("./model/final_bert_model")
 gtraining_args = TrainingArguments(
     output_dir="./checkpoints",                 # ✅ Save location
     overwrite_output_dir=True,                  # ✅ Overwrite if exists
-    num_train_epochs=500,                        # ✅ Your plan
+    num_train_epochs=50,                        # ✅ Your plan
     per_device_train_batch_size=8,              # ✅ Tweak based on memory
     logging_dir="./logs",                       # ✅ For TensorBoard etc.
     logging_steps=10,                           # ✅ Log every 10 steps
@@ -168,20 +168,20 @@ from draft_eval import evaluate_model_detailed
 df = evaluate_model_detailed(gmodel,train_docs,mode='causal')
 
 df.to_csv('eval/gmodel_train.csv')
-df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean()
+df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('gtraub_rez.csv')
 
 
 df = evaluate_model_detailed(gmodel,test_docs,mode='causal')
 
 df.to_csv('eval/gmodel_test.csv')
-df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean()
+df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('gtest_rez.csv')
 
 df = evaluate_model_detailed(bmodel,train_docs,mode='mask')
 
 df.to_csv('eval/bmodel_train.csv')
-df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean()
+df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('btest_rez.csv')
 
 df = evaluate_model_detailed(bmodel,test_docs,mode='mask')
 
 df.to_csv('eval/bmodel_test.csv')
-df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean()
+df.groupby("predicting_position")[["top1_correct", "top3_correct", "top5_correct", "top10_correct"]].mean().to_csv('btest_rez.csv')
