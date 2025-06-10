@@ -1,3 +1,4 @@
+import torch
 def prepare_draft_for_generation(sequence, tokenizer, start_generate_from=None):
     """
     Prepares a tokenized sequence for auto-regressive generation by zeroing out input_ids

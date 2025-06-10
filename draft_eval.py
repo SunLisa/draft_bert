@@ -19,8 +19,10 @@ def get_blocked_token_ids(used_token_ids, pad_token_id=252, device='cpu'):
             continue
         if 0 <= tok <= 125:  # pick
             blocked_ids.add(tok)
+            blocked_ids.add(tok+126)
         elif 126 <= tok <= 251:  # ban
             blocked_ids.add(tok - 126)  # map ban_X -> pick_X
+            blocked_ids.add(tok)
 
     return torch.tensor([list(blocked_ids)], dtype=torch.long, device=device)
 
