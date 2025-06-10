@@ -1,3 +1,31 @@
+import torch
+
+def get_blocked_token_ids(used_token_ids, pad_token_id=252, device='cpu'):
+    """
+    Given a list of used token IDs (input_ids), returns a tensor of blocked token IDs
+    mapped to the pick-space [0–125].
+
+    Args:
+        used_token_ids (List[int]): List of token ids from the sequence.
+        pad_token_id (int): The pad token ID to ignore.
+        device (str or torch.device): Where to place the returned tensor.
+
+    Returns:
+        torch.LongTensor: A tensor of shape [1, N] listing blocked pick-token ids.
+    """
+    blocked_ids = set()
+    for tok in used_token_ids:
+        if tok >= pad_token_id:
+            continue
+        if 0 <= tok <= 125:  # pick
+            blocked_ids.add(tok)
+        elif 126 <= tok <= 251:  # ban
+            blocked_ids.add(tok - 126)  # map ban_X -> pick_X
+
+    return torch.tensor([list(blocked_ids)], dtype=torch.long, device=device)
+
+
+
 def generate_causal_eval_samples(tokenized_doc, max_len=32):
     input_ids = tokenized_doc['input_ids']
     attention_mask = tokenized_doc['attention_mask']
@@ -16,7 +44,7 @@ def generate_causal_eval_samples(tokenized_doc, max_len=32):
             'team_ids': team_ids[:i].clone(),
             'type_ids': type_ids[:i].clone(),
             'label': input_ids[i].item(),
-            'predicting_position':i+1  # the "next" token
+            'predicting_position':i  # the "next" token
         }
         samples.append(sample)
 
@@ -108,13 +136,19 @@ def evaluate_model_detailed(
             ### change logit to -inf
             ### output will be clean
             ###
+            used_token_ids = input_ids[0].tolist()  # get list of tokens
+            blocked_token_ids = get_blocked_token_ids(used_token_ids)
+    # Remove padding tokens
+           
+            
             with torch.no_grad():
                 outputs = model(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
                     position_ids=position_ids,
                     team_ids=team_ids,
-                    type_ids=type_ids
+                    type_ids=type_ids,
+                    blocked_token_ids=blocked_token_ids
                 )
                 logits = outputs['logits']
             if mode == "masked":
@@ -122,6 +156,7 @@ def evaluate_model_detailed(
                 logits_at_pos = logits[0, pred_pos]
             elif mode == "causal":
                 logits_at_pos = logits[0, -1]
+                pred_pos = sample['predicting_position']
             true_label = sample['label']
 
             result = {

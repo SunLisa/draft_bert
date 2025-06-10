@@ -133,7 +133,8 @@ class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, labels=None):
+    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, labels=None,
+                 blocked_token_ids=None):
         team_embeddings = self.team_embed(team_ids)
         type_embeddings = self.type_embed(type_ids)
 
@@ -142,6 +143,11 @@ class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
 
         outputs = self.transformer(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
         logits = self.lm_head(outputs.last_hidden_state)
+
+        if blocked_token_ids is not None:
+            for i in range(logits.size(0)):  # batch size
+                for blocked_id in blocked_token_ids[i]:
+                    logits[i, -1, blocked_id] = float('-inf')
 
         loss = None
         if labels is not None:

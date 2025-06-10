@@ -32,6 +32,7 @@ class DraftTokenizer:
             vocab = json.load(f)
         with open(f"{vocab_dir}/reverse_vocab.json") as f:
             reverse_vocab = json.load(f)
+        reverse_vocab = {int(k): v for k, v in reverse_vocab.items()}
         with open(f"{vocab_dir}/dense_map.json") as f:
             dense_map = json.load(f)
         dense_map = {int(k): v for k, v in dense_map.items()}
