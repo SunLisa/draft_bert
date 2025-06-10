@@ -15,7 +15,8 @@ def generate_causal_eval_samples(tokenized_doc, max_len=32):
             'position_ids': position_ids[:i].clone(),
             'team_ids': team_ids[:i].clone(),
             'type_ids': type_ids[:i].clone(),
-            'label': input_ids[i].item()  # the "next" token
+            'label': input_ids[i].item(),
+            'predicting_position':i+1  # the "next" token
         }
         samples.append(sample)
 
@@ -116,9 +117,11 @@ def evaluate_model_detailed(
                     type_ids=type_ids
                 )
                 logits = outputs['logits']
-
-            pred_pos = sample['predicting_position']
-            logits_at_pos = logits[0, pred_pos]
+            if mode == "masked":
+                pred_pos = sample['predicting_position']
+                logits_at_pos = logits[0, pred_pos]
+            elif mode == "causal":
+                logits_at_pos = logits[0, -1]
             true_label = sample['label']
 
             result = {
