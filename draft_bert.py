@@ -72,7 +72,7 @@ class DraftBertModel(BertModel):
             pooler_output=pooled_output,
             attentions=encoder_outputs.attentions,
             hidden_states=None,  # if you're not using them
-            inputs_embeds=embedding_output  # ✅ Add this
+            #inputs_embeds=embedding_output  # ✅ Add this
                     )
 """
         return BaseModelOutputWithPooling(
@@ -122,7 +122,7 @@ class DraftBertForMaskedLM(BertPreTrainedModel):
             "loss": loss,
             "logits": prediction_scores,
              "attentions": outputs.attentions ,
-              "inputs_embeds": outputs["inputs_embeds"] 
+              #"inputs_embeds": outputs["inputs_embeds"] 
         }
 
 
@@ -176,4 +176,5 @@ class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
             loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
 
         return {'loss': loss, 'logits': logits,'attentions': outputs.attentions,
-                 'inputs_embeds': inputs_embeds}
+                 #'inputs_embeds': inputs_embeds
+                 }
