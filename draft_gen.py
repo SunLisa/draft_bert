@@ -91,15 +91,15 @@ def beam_generate_draft_from_cut(model, tokenizer, sequence, start_pos, beam_wid
             # Build model inputs
             if model_type == 'gpt':
                 inputs = {
-                    "input_ids": beam_input_ids[:, :i+1],
-                    "attention_mask": sequence["attention_mask"][:, :i+1],
-                    "position_ids": sequence["position_ids"][:, :i+1],
-                    "team_ids": sequence["team_ids"][:, :i+1],
-                    "type_ids": sequence["type_ids"][:, :i+1],
+                    "input_ids": beam_input_ids[:i+1],
+                    "attention_mask": sequence["attention_mask"][:i+1],
+                    "position_ids": sequence["position_ids"][:i+1],
+                    "team_ids": sequence["team_ids"][:i+1],
+                    "type_ids": sequence["type_ids"][:i+1],
                 }
             elif model_type == 'bert':
                 masked_input_ids = beam_input_ids.clone()
-                masked_input_ids[0, i:] = tokenizer.mask_token_id
+                masked_input_ids[i:] = tokenizer.mask_token_id
                 inputs = {
                     "input_ids": masked_input_ids,
                     "attention_mask": sequence["attention_mask"],
@@ -112,9 +112,9 @@ def beam_generate_draft_from_cut(model, tokenizer, sequence, start_pos, beam_wid
 
             # Block used tokens
             with torch.no_grad():
-                blocked_ids = get_blocked_token_ids(beam_input_ids[0, :i])
-                blocked_token_ids = torch.tensor([list(blocked_ids)], dtype=torch.long).to(device)
-                outputs = model(**inputs, blocked_token_ids=blocked_token_ids)
+                used_token_ids = beam_input_ids[:i].tolist()  # properly slice and flatten
+                blocked_ids = get_blocked_token_ids(used_token_ids)
+                outputs = model(**inputs, blocked_token_ids=blocked_ids)
 
             logits = outputs["logits"][0, -1 if model_type == 'gpt' else i]
             probs = torch.softmax(logits, dim=-1)

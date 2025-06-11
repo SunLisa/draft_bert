@@ -145,9 +145,19 @@ class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
         logits = self.lm_head(outputs.last_hidden_state)
 
         if blocked_token_ids is not None:
-            for i in range(logits.size(0)):  # batch size
-                for blocked_id in blocked_token_ids[i]:
-                    logits[i, -1, blocked_id] = float('-inf')
+            if logits.dim() == 3:
+                # Batched: [batch_size, seq_len, vocab_size]
+                for i in range(logits.size(0)):
+                    for blocked_id in blocked_token_ids[i]:
+                        logits[i, -1, blocked_id] = float('-inf')
+            elif logits.dim() == 2:
+                # Unbatched: [seq_len, vocab_size]
+                for blocked_id in blocked_token_ids[0]:  # assume single batch
+                    logits[-1, blocked_id] = float('-inf')
+            elif logits.dim() == 1:
+                # Even more reduced: [vocab_size] only
+                for blocked_id in blocked_token_ids[0]:
+                    logits[blocked_id] = float('-inf')
 
         loss = None
         if labels is not None:
