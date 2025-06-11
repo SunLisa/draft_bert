@@ -116,14 +116,14 @@ def beam_generate_draft_from_cut(model, tokenizer, sequence, start_pos, beam_wid
                 blocked_ids = get_blocked_token_ids(used_token_ids)
                 outputs = model(**inputs, blocked_token_ids=blocked_ids)
 
-            logits = outputs["logits"][0, -1 if model_type == 'gpt' else i]
+            logits = outputs["logits"][-1 if model_type == 'gpt' else i]
             probs = torch.softmax(logits, dim=-1)
             topk_probs, topk_ids = torch.topk(probs, beam_width)
 
             # Expand beams
             for j in range(beam_width):
                 new_input_ids = beam_input_ids.clone()
-                new_input_ids[0, i] = topk_ids[j]
+                new_input_ids[ i] = topk_ids[j]
 
                 new_beams.append({
                     "input_ids": new_input_ids,
@@ -142,7 +142,7 @@ def beam_generate_draft_from_cut(model, tokenizer, sequence, start_pos, beam_wid
         beams = sorted(new_beams, key=lambda x: x["score"], reverse=True)[:beam_width]
 
         # Early exit if all beams finished with SEP
-        if all(beam["input_ids"][0, i].item() == tokenizer.sep_token_id for beam in beams):
+        if all(beam["input_ids"][i].item() == tokenizer.sep_token_id for beam in beams):
             break
 
     return beams

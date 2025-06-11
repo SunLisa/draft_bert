@@ -33,7 +33,7 @@ class DraftBertModel(BertModel):
         self.pooler = BertPooler(config) if getattr(config, "add_pooling_layer", False) else None
         self.is_causal = is_causal
 
-    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None):
+    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, output_attentions=True):
         if self.is_causal:  # hypothetical flag
             seq_len = input_ids.size(1)
             causal_mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool, device=input_ids.device))
@@ -60,19 +60,27 @@ class DraftBertModel(BertModel):
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask=attention_mask,
+            output_attentions=output_attentions
         )
 
         sequence_output = encoder_outputs[0]
 
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
 
-
-
         return BaseModelOutputWithPooling(
             last_hidden_state=sequence_output,
-            pooler_output=pooled_output
+            pooler_output=pooled_output,
+            attentions=encoder_outputs.attentions,
+            hidden_states=None,  # if you're not using them
+            inputs_embeds=embedding_output  # ✅ Add this
+                    )
+"""
+        return BaseModelOutputWithPooling(
+            last_hidden_state=sequence_output,
+            pooler_output=pooled_output,
+             attentions=encoder_outputs.attentions
         )
-
+"""
 
 
 from transformers import BertPreTrainedModel
@@ -86,14 +94,15 @@ class DraftBertForMaskedLM(BertPreTrainedModel):
         self.cls = BertOnlyMLMHead(config)
         self.init_weights()
 
-    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, labels=None, blocked_token_ids=None):
+    def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, labels=None, blocked_token_ids=None, output_attentions=True):
         # Pass everything through the model
         outputs = self.bert(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
             team_ids=team_ids,
-            type_ids=type_ids
+            type_ids=type_ids,
+            output_attentions=output_attentions
         )
 
         sequence_output = outputs.last_hidden_state
@@ -111,7 +120,9 @@ class DraftBertForMaskedLM(BertPreTrainedModel):
 
         return {
             "loss": loss,
-            "logits": prediction_scores
+            "logits": prediction_scores,
+             "attentions": outputs.attentions ,
+              "inputs_embeds": outputs["inputs_embeds"] 
         }
 
 
@@ -134,14 +145,14 @@ class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
         self.init_weights()
 
     def forward(self, input_ids, attention_mask=None, position_ids=None, team_ids=None, type_ids=None, labels=None,
-                 blocked_token_ids=None):
+                 blocked_token_ids=None, output_attentions=True):
         team_embeddings = self.team_embed(team_ids)
         type_embeddings = self.type_embed(type_ids)
 
         inputs_embeds = self.transformer.wte(input_ids) + self.transformer.wpe(position_ids)
         inputs_embeds = inputs_embeds + team_embeddings + type_embeddings
 
-        outputs = self.transformer(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
+        outputs = self.transformer(inputs_embeds=inputs_embeds, attention_mask=attention_mask,output_attentions=output_attentions)
         logits = self.lm_head(outputs.last_hidden_state)
 
         if blocked_token_ids is not None:
@@ -164,4 +175,5 @@ class DraftGPT2ForCausalLM(GPT2PreTrainedModel):
             loss_fct = nn.CrossEntropyLoss(ignore_index=self.pad_token_id)
             loss = loss_fct(logits.view(-1, logits.size(-1)), labels.view(-1))
 
-        return {'loss': loss, 'logits': logits}
+        return {'loss': loss, 'logits': logits,'attentions': outputs.attentions,
+                 'inputs_embeds': inputs_embeds}

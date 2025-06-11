@@ -88,6 +88,9 @@ gconfig.add_pooling_layer = True
 gconfig.pad_token_id = t.pad_token_id         # 252
 gconfig.bos_token_id = t.cls_token_id         # 254
 gconfig.eos_token_id = t.sep_token_id         # 255
+bconfig.output_attentions = True
+gconfig.output_attentions = True
+
 
 from draft_dataset import DraftMLMDataset, DraftCLMDataset
 
